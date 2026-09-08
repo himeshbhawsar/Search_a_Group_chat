@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Chat Search — Simple Version</title>
+  <style>
+    /* ===== RESET & BASIC ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #212529;
+      line-height: 1.5;
+      padding-bottom: 40px;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+    /* ===== HEADER ===== */
+    header {
+      background: #ffffff;
+      padding: 15px 20px;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 20px; color: #0d6efd; margin: 0; }
+    
+    /* ===== TABS ===== */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 10px;
+    }
+    .tab-btn {
+      background: none;
+      border: 1px solid transparent;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 4px;
+      color: #495057;
+    }
+    .tab-btn.active {
+      background: #0d6efd;
+      color: white;
+      border-color: #0d6efd;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ===== SEARCH UI ===== */
+    .search-box {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+      margin-bottom: 20px;
+    }
+    .search-input-wrap {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #searchInput {
+      flex: 1;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+    }
+    #searchInput:focus { outline: none; border-color: #0d6efd; }
+    .search-btn {
+      padding: 10px 20px;
+      background: #0d6efd;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .search-btn:hover { background: #0b5ed7; }
+    
+    .filters {
+      display: flex;
+      gap: 10px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .filters select { padding: 5px; border-radius: 4px; border: 1px solid #ced4da; }
+
+    .sample-queries { margin-top: 15px; font-size: 13px; color: #6c757d; }
+    .sample-btn {
+      background: #e9ecef;
+      border: 1px solid #ced4da;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 5px;
+      margin-bottom: 5px;
+      display: inline-block;
+    }
+    .sample-btn:hover { background: #dee2e6; }
+
+    /* ===== RESULTS ===== */
+    .result-info { font-size: 14px; color: #6c757d; margin-bottom: 15px; }
+    .result-card {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .sender-name { font-weight: bold; color: #0d6efd; }
+    .msg-time { color: #6c757d; }
+    .msg-text { font-size: 16px; margin-bottom: 10px; }
+    .result-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #f8f9fa;
+      padding-top: 10px;
+      font-size: 12px;
+    }
+    .context-btn {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .context-btn:hover { background: #e9ecef; }
+    .score-badge { color: #198754; font-weight: bold; }
+
+    /* ===== CONTEXT MODAL ===== */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-content {
+      background: white;
+      width: 100%;
+      max-width: 600px;
+      max-height: 80vh;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 15px;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; }
+    .modal-body {
+      padding: 15px;
+      overflow-y: auto;
+    }
+    .ctx-item {
+      padding: 10px;
+      border-left: 2px solid #dee2e6;
+      margin-bottom: 10px;
+      background: #f8f9fa;
+    }
+    .ctx-item.matched {
+      border-left-color: #0d6efd;
+      background: #e7f1ff;
+    }
+    .ctx-meta { font-size: 12px; color: #6c757d; margin-bottom: 5px; }
+    
+    /* ===== UTILS ===== */
+    .badge {
+      display: inline-block;
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .bg-blue { background: #cff4fc; color: #055160; }
+    .bg-green { background: #d1e7dd; color: #0f5132; }
+
+    /* Tables for Benchmark */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; background: white; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f8f9fa; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>💬 Group Chat Search</h1>
+  <div style="font-size: 14px; color: #6c757d;">Index: <span id="msgCount">0</span> messages</div>
+</header>
+
+<div class="container">
+  
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="search">Search</button>
+    <button class="tab-btn" data-tab="explorer">Browse Chat</button>
+  </div>
+
+  <!-- SEARCH TAB -->
+  <div id="tab-search" class="tab-content active">
+    <div class="search-box">
+      <div class="search-input-wrap">
+        <input type="text" id="searchInput" placeholder="Type what you remember (e.g. 'when did we decide on the trip')" value="when did we decide on the trip">
+        <button class="search-btn" onclick="doSearch()">Search</button>
+      </div>
+      
+      <div class="filters">
+        <select id="modeSelect" onchange="doSearch()">
+          <option value="hybrid">Smart Search (Meaning)</option>
+          <option value="keyword">Exact Word Match Only</option>
+        </select>
+        <select id="senderFilter" onchange="doSearch()">
+          <option value="">All Participants</option>
+          <option>Rahul</option><option>Priya</option><option>Amit</option>
+          <option>Sneha</option><option>Rohan</option><option>Ananya</option>
+          <option>Vikram</option><option>Neha</option>
+        </select>
+      </div>
+
+      <div class="sample-queries">
+        Try: 
+        <span class="sample-btn" onclick="setQuery('when did we decide on the trip')">when did we decide on the trip</span>
+        <span class="sample-btn" onclick="setQuery('Priya ne budget ke baare mein kya kaha')">Priya ne budget ke baare mein kya kaha</span>
+        <span class="sample-btn" onclick="setQuery('May mein kya discuss hua')">May mein kya discuss hua</span>
+      </div>
+    </div>
+
+    <div class="result-info" id="resultInfo">Loading messages...</div>
+    <div id="resultsContainer"></div>
+  </div>
+
+  <!-- BROWSE CHAT TAB -->
+  <div id="tab-explorer" class="tab-content">
+    <div class="search-box">
+      <h3>All Messages</h3>
+      <p style="font-size: 14px; color: #6c757d; margin-bottom: 10px;">Browse the entire simulated group chat history.</p>
+      <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; background: white; border-radius: 4px; padding: 10px;" id="fullCorpusList">
+        Loading...
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONTEXT MODAL -->
+<div class="modal-overlay" id="ctxModal" onclick="closeModal(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 style="margin:0;">Surrounding Context</h3>
+      <button class="modal-close" onclick="document.getElementById('ctxModal').classList.remove('active')">&times;</button>
+    </div>
+    <div class="modal-body" id="ctxBody"></div>
+  </div>
+</div>
+
+<script>
+// ================= DATA =================
+const PARTICIPANTS = ['Rahul', 'Priya', 'Amit', 'Sneha', 'Rohan', 'Ananya', 'Vikram', 'Neha'];
+
+// Concept mapping for Hinglish meaning
+const HDICT = {
+  trip: ['manali','goa','rishikesh','pahad','vacation','travel','chalo','pack','tickets','sept'],
+  decide: ['fix','final','pack','baseline','lock','confirm','done','fixed'],
+  budget: ['kharcha','cost','head','gpay','paisa','rate','6500','5k','token','price','money'],
+  cost: ['price','rate','6500','5k','kharcha','head','total','token','inr','per'],
+  stay: ['resort','cottage','room','hotel','booking','venue'],
+  money: ['gpay','transfer','payment','cash','token','5k','10k','inr'],
+  food: ['menu','shuddh','shakahari','veg','pure','kitchen','breakfast','dinner']
+};
+
+let CORPUS = [];
+
+function generateCorpus() {
+  const msgs = [];
+  const banter = [
+    'subah subah kya chal raha hai','good morning guys','bhai koi jaag raha hai kya',
+    'kya scene hai aaj ka','kaun free hai shaam ko','chai peene chalein?',
+    'bhai kya chal raha hai office main','lunch me kya mangwana hai','kaafi thak gaya bro',
+    'chalo thik hai','mujhe bhi tag kar dena','haan bhai bilkul','sahi me?',
+    'ha','nhi','k','ok','done','sahi','lol','bhai','nice','gpayed','great','sure'
+  ];
+
+  let ts = new Date('2026-03-01T08:00:00Z').getTime();
+  const step = (new Date('2026-08-31T22:00:00Z').getTime() - ts) / 1000;
+
+  for (let i = 0; i < 1000; i++) {
+    ts += step;
+    const dateStr = new Date(ts).toISOString();
+    
+    // Inject key messages
+    if (i === 400) { msgs.push({ id:'m1', ts:dateStr, sender:'Rahul', text:'chalo Manali fix hai 14th Sept to 18th Sept pack kar dete hain tickets ready baseline' }); continue; }
+    if (i === 450) { msgs.push({ id:'m2', ts:dateStr, sender:'Priya', text:'resort cost per head 6500 inr final including breakfast and dinner' }); continue; }
+    if (i === 452) { msgs.push({ id:'m3', ts:dateStr, sender:'Priya', text:'sab log Priya ko 5k gpay kar do immediately token advance bhej na h resort ko' }); continue; }
+    if (i === 600) { msgs.push({ id:'m4', ts:dateStr, sender:'Sneha', text:'resort menu mein shuddh shakahari options ready hain pure veg kitchen available' }); continue; }
+
+    msgs.push({
+      id: 'msg_' + i,
+      ts: dateStr,
+      sender: PARTICIPANTS[i % PARTICIPANTS.length],
+      text: banter[Math.floor(Math.random() * banter.length)]
+    });
+  }
+  return msgs;
+}
+
+// ================= SEARCH ENGINE =================
+function expandTokens(text) {
+  const raw = text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean);
+  const expanded = [...raw];
+  for (const tok of raw) {
+    if (HDICT[tok]) expanded.push(...HDICT[tok]);
+  }
+  return expanded;
+}
+
+function cosine(qTokens, dTokens) {
+  if (!qTokens.length || !dTokens.length) return 0;
+  const qFreq = {}, dFreq = {};
+  qTokens.forEach(t => qFreq[t] = (qFreq[t]||0)+1);
+  dTokens.forEach(t => dFreq[t] = (dFreq[t]||0)+1);
+  let dot=0, qMag=0, dMag=0;
+  for (const [t,c] of Object.entries(qFreq)) { qMag+=c*c; if(dFreq[t]) dot+=c*dFreq[t]; }
+  for (const c of Object.values(dFreq)) dMag+=c*c;
+  if (!qMag||!dMag) return 0;
+  return dot/(Math.sqrt(qMag)*Math.sqrt(dMag));
+}
+
+function doSearch() {
+  const query = document.getElementById('searchInput').value.trim();
+  const mode = document.getElementById('modeSelect').value;
+  const senderFilter = document.getElementById('senderFilter').value;
+  
+  if (!query) {
+    document.getElementById('resultsContainer').innerHTML = '';
+    document.getElementById('resultInfo').textContent = 'Please enter a search query.';
+    return;
+  }
+
+  const qTokens = expandTokens(query);
+  const rawWords = query.toLowerCase().split(/\s+/);
+  
+  const results = [];
+
+  for (let i = 0; i < CORPUS.length; i++) {
+    const msg = CORPUS[i];
+    if (senderFilter && msg.sender !== senderFilter) continue;
+
+    const dTokens = expandTokens(msg.text);
+    const textLow = msg.text.toLowerCase();
+
+    const vecSim = cosine(qTokens, dTokens);
+    const exactMatches = rawWords.filter(w => textLow.includes(w)).length;
+    const bm25 = rawWords.length ? exactMatches / rawWords.length : 0;
+
+    let score = mode === 'keyword' ? bm25 : (0.7 * vecSim + 0.3 * bm25);
+
+    if (score > 0.05) {
+      results.push({ message: msg, score, index: i });
+    }
+  }
+
+  results.sort((a,b) => b.score - a.score);
+  const topResults = results.slice(0, 20);
+
+  document.getElementById('resultInfo').textContent = `Found ${results.length} matches`;
+  
+  const container = document.getElementById('resultsContainer');
+  if (!topResults.length) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:#6c757d;">No results found.</div>';
+    return;
+  }
+
+  container.innerHTML = topResults.map(r => `
+    <div class="result-card">
+      <div class="result-header">
+        <span class="sender-name">${r.message.sender}</span>
+        <span class="msg-time">${new Date(r.message.ts).toLocaleString()}</span>
+      </div>
+      <div class="msg-text">${r.message.text}</div>
+      <div class="result-footer">
+        <span class="score-badge">Match Score: ${(r.score * 100).toFixed(0)}%</span>
+        <button class="context-btn" onclick="openContext(${r.index})">View Context</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ================= UI LOGIC =================
+function setQuery(text) {
+  document.getElementById('searchInput').value = text;
+  doSearch();
+}
+
+function openContext(index) {
+  const start = Math.max(0, index - 3);
+  const end = Math.min(CORPUS.length, index + 4);
+  const contextMsgs = CORPUS.slice(start, end);
+
+  document.getElementById('ctxBody').innerHTML = contextMsgs.map((m, i) => {
+    const isTarget = m.id === CORPUS[index].id;
+    return `
+      <div class="ctx-item ${isTarget ? 'matched' : ''}">
+        <div class="ctx-meta"><strong>${m.sender}</strong> · ${new Date(m.ts).toLocaleString()}</div>
+        <div>${m.text}</div>
+      </div>
+    `;
+  }).join('');
+  
+  document.getElementById('ctxModal').classList.add('active');
+}
+
+function closeModal(e) {
+  if (e.target.id === 'ctxModal') {
+    document.getElementById('ctxModal').classList.remove('active');
+  }
+}
+
+function renderExplorer() {
+  document.getElementById('fullCorpusList').innerHTML = CORPUS.map(m => `
+    <div style="padding: 10px; border-bottom: 1px solid #f1f3f5;">
+      <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px;">
+        <strong style="color: #0d6efd;">${m.sender}</strong> · ${new Date(m.ts).toLocaleString()}
+      </div>
+      <div style="font-size: 14px;">${m.text}</div>
+    </div>
+  `).join('');
+}
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Init
+window.onload = () => {
+  CORPUS = generateCorpus();
+  document.getElementById('msgCount').textContent = CORPUS.length;
+  renderExplorer();
+  doSearch();
+};
+</script>
+</body>
+</html>
